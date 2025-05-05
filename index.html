@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>미팅 가능 시간표</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      text-align: center;
+      padding: 5px;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h2>일주일 가능 시간 체크표</h2>
+  <form id="timeForm">
+    <table>
+      <thead>
+        <tr>
+          <th>시간/요일</th>
+          <th>월</th>
+          <th>화</th>
+          <th>수</th>
+          <th>목</th>
+          <th>금</th>
+          <th>토</th>
+          <th>일</th>
+        </tr>
+      </thead>
+      <tbody id="timeTableBody"></tbody>
+    </table>
+    <button type="button" onclick="downloadCheckedTimes()">저장하기</button>
+  </form>
+
+  <script>
+    const startHour = 8;
+    const endHour = 22;
+    const days = ['월', '화', '수', '목', '금', '토', '일'];
+    const tableBody = document.getElementById('timeTableBody');
+
+    // 시간표 생성
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let half = 0; half < 2; half++) {
+        const row = document.createElement('tr');
+        const timeCell = document.createElement('td');
+        const timeStr = `${String(hour).padStart(2, '0')}:${half === 0 ? '00' : '30'}`;
+        timeCell.textContent = timeStr;
+        row.appendChild(timeCell);
+
+        for (let d = 0; d < 7; d++) {
+          const cell = document.createElement('td');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.name = `${days[d]}_${timeStr}`;
+          cell.appendChild(checkbox);
+          row.appendChild(cell);
+        }
+
+        tableBody.appendChild(row);
+      }
+    }
+
+    function downloadCheckedTimes() {
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+      let result = "선택한 가능한 시간:\n";
+
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          result += `- ${cb.name.replace('_', ' ')}\n`;
+        }
+      });
+
+      const blob = new Blob([result], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '가능_시간표.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
