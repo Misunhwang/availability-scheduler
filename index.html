@@ -1,145 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Weekly Availability Schedule</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Availability Checker</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    h2, label {
-      margin-bottom: 10px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-      margin-bottom: 20px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      text-align: center;
-      padding: 5px;
-    }
-    th {
-      background-color: #f0f0f0;
-    }
-    input[type="text"] {
-      padding: 8px;
-      font-size: 14px;
-      width: 300px;
-      margin-top: 10px;
-      margin-bottom: 20px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { font-size: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; cursor: pointer; }
+    input[type="text"] { margin-bottom: 10px; padding: 6px; width: 200px; }
+    button { padding: 8px 16px; margin-top: 10px; }
+    .selected { background-color: #a2d5f2; }
   </style>
 </head>
 <body>
-  <h2 id="dateTitle">Availability for [loading...]</h2>
+  <h1 id="title">Availability for This Week</h1>
 
-  <label for="nameInput">Your Name:</label><br>
-  <input type="text" id="nameInput" placeholder="Enter your name here" required>
+  <label for="name">Your Name:</label>
+  <input type="text" id="name" placeholder="Enter your name" />
 
-  <form id="timeForm">
-    <table>
-      <thead>
-        <tr>
-          <th>Time / Day</th>
-          <th>Mon</th>
-          <th>Tue</th>
-          <th>Wed</th>
-          <th>Thu</th>
-          <th>Fri</th>
-          <th>Sat</th>
-          <th>Sun</th>
-        </tr>
-      </thead>
-      <tbody id="timeTableBody"></tbody>
-    </table>
-    <button type="button" onclick="downloadCheckedTimes()">Download Availability</button>
-  </form>
+  <table id="availabilityTable">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th data-day="Monday">Monday</th>
+        <th data-day="Tuesday">Tuesday</th>
+        <th data-day="Wednesday">Wednesday</th>
+        <th data-day="Thursday">Thursday</th>
+        <th data-day="Friday">Friday</th>
+        <th data-day="Saturday">Saturday</th>
+        <th data-day="Sunday">Sunday</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <button onclick="downloadAvailability()">Download Availability</button>
 
   <script>
-    const startHour = 8;
-    const endHour = 22;
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const tableBody = document.getElementById('timeTableBody');
+    const times = [];
+    for (let h = 8; h <= 20; h++) {
+      times.push(`${String(h).padStart(2, '0')}:00`, `${String(h).padStart(2, '0')}:30`);
+    }
 
-    // Dynamic date range for current week
-    function getWeekRangeString() {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    const tableBody = document.getElementById('tableBody');
+
+    times.forEach(time => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${time}</td>` + days.map(day => `
+        <td data-day="${day}" data-time="${time}"></td>
+      `).join('');
+      tableBody.appendChild(row);
+    });
+
+    // Cell toggle logic
+    document.querySelectorAll('td[data-day]').forEach(cell => {
+      cell.addEventListener('click', () => {
+        cell.classList.toggle('selected');
+      });
+    });
+
+    // Column (day) header click logic
+    document.querySelectorAll('th[data-day]').forEach(th => {
+      th.addEventListener('click', () => {
+        const day = th.dataset.day;
+        document.querySelectorAll(`td[data-day='${day}']`).forEach(cell => {
+          cell.classList.toggle('selected');
+        });
+      });
+    });
+
+    function getCurrentWeekRange() {
       const today = new Date();
-      const day = today.getDay(); // Sunday = 0
-      const diffToMonday = (day === 0 ? -6 : 1) - day; // adjust if Sunday
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + diffToMonday);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
+      const start = new Date(today);
+      start.setDate(today.getDate() - today.getDay() + 1); // Monday
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6); // Sunday
 
-      const formatDate = (date) =>
-        `${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`;
-
-      return `${formatDate(monday)} to ${formatDate(sunday)}`;
-    }
-
-    const weekRange = getWeekRangeString();
-    document.getElementById('dateTitle').textContent = `Availability for ${weekRange}`;
-
-    // Generate time table
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let half = 0; half < 2; half++) {
-        const row = document.createElement('tr');
-        const timeCell = document.createElement('td');
-        const timeStr = `${String(hour).padStart(2, '0')}:${half === 0 ? '00' : '30'}`;
-        timeCell.textContent = timeStr;
-        row.appendChild(timeCell);
-
-        for (let d = 0; d < 7; d++) {
-          const cell = document.createElement('td');
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.name = `${days[d]}_${timeStr}`;
-          cell.appendChild(checkbox);
-          row.appendChild(cell);
-        }
-
-        tableBody.appendChild(row);
+      function formatDayWithSuffix(day) {
+        const suffixes = { 1: "st", 2: "nd", 3: "rd" };
+        const suffix = (day % 10 in suffixes && ![11, 12, 13].includes(day)) ? suffixes[day % 10] : "th";
+        return `${day}${suffix}`;
       }
+
+      const options = { month: 'long' };
+      return `${formatDayWithSuffix(start.getDate())} ${start.toLocaleDateString('en-US', options)} to ${formatDayWithSuffix(end.getDate())} ${end.toLocaleDateString('en-US', options)}`;
     }
 
-    function downloadCheckedTimes() {
-      const name = document.getElementById('nameInput').value.trim();
-      if (name === '') {
-        alert('Please enter your name before downloading.');
+    document.getElementById("title").textContent = `Availability for ${getCurrentWeekRange()}`;
+
+    function downloadAvailability() {
+      const name = document.getElementById('name').value.trim();
+      if (!name) {
+        alert("Please enter your name.");
         return;
       }
 
-      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-      let result = `Name: ${name}\nAvailability for ${weekRange}:\n`;
+      const selected = {};
+      document.querySelectorAll('td.selected').forEach(cell => {
+        const day = cell.dataset.day;
+        const time = cell.dataset.time;
+        if (!selected[day]) selected[day] = [];
+        selected[day].push(time);
+      });
 
-      checkboxes.forEach(cb => {
-        if (cb.checked) {
-          const [day, time] = cb.name.split('_');
-          result += `- ${day} at ${time}\n`;
+      let content = `Name: ${name}\nAvailability for ${getCurrentWeekRange()}:\n`;
+      days.forEach(day => {
+        if (selected[day]) {
+          content += `- ${day} at ${selected[day].join(", ")}\n`;
         }
       });
 
-      if (result.split('\n').length <= 2) {
-        alert('Please select at least one time slot.');
-        return;
-      }
-
-      const blob = new Blob([result], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob([content], { type: 'text/plain' });
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${name.replace(/\s+/g, '_')}_availability.txt`;
+      a.href = URL.createObjectURL(blob);
+      a.download = `availability_${name}.txt`;
       a.click();
-      URL.revokeObjectURL(url);
     }
   </script>
 </body>
